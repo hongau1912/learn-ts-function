@@ -1,0 +1,56 @@
+name: Deploy NestJS with Hasura GraphQL App - Develop
+
+on:
+  push:
+    branches:
+      - develop
+  pull_request:
+    types: [closed]
+    branches:
+      - develop
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      HASURA_ADMIN_SECRET: ${{ secrets.HASURA_ADMIN_SECRET_DEVELOP }}
+      HASURA_ENDPOINT: ${{ secrets.HASURA_ENDPOINT_DEVELOP }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '16'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build the project
+        run: npm run build
+
+      - name: Set up Hasura CLI
+        run: |
+          curl -L https://github.com/hasura/graphql-engine/raw/stable/cli/get.sh | bash
+
+      - name: Apply Hasura Migrations
+        working-directory: hasura
+        run: |
+          hasura migrate apply --database-name default --endpoint $HASURA_ENDPOINT --admin-secret $HASURA_ADMIN_SECRET
+
+      - name: Apply Hasura Metadata
+        working-directory: hasura
+        run: |
+          hasura metadata apply --endpoint $HASURA_ENDPOINT --admin-secret $HASURA_ADMIN_SECRET
+
+      # - name: Deploy to Render
+      #   run: |
+      #     curl -X POST -H "Authorization: Bearer $RENDER_API_KEY" \
+      #     -H "Content-Type: application/json" \
+      #     -d '{"serviceId": "srv-cp61it821fec7389g8eg", "branch": "develop"}' \
+      #     https://api.render.com/v1/services/srv-cp61it821fec7389g8eg/deploys

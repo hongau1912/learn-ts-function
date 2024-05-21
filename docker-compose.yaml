@@ -1,0 +1,41 @@
+version: '3.8'
+services:
+  database:
+    container_name: postgres_container
+    image: postgres
+    env_file: ./.env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - '${POSTGRES_PORT}:5432'
+    restart: unless-stopped
+
+  hasura:
+    image: hasura/graphql-engine:v2.36.0
+    ports:
+      - '${HASURA_PORT}:8080'
+    restart: always
+    env_file: ./.env
+    depends_on:
+      - database
+    extra_hosts:
+      - host.docker.internal:host-gateway
+
+  functions:
+    build:
+      dockerfile: Dockerfile
+      context: .
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    command: npm run dev
+    ports:
+      - '${PORT}:4000'
+    depends_on:
+      - hasura
+    extra_hosts:
+      - host.docker.internal:host-gateway
+
+volumes:
+  postgres_data:
